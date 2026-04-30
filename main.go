@@ -8,6 +8,7 @@ import (
     "sync"
 
     "github.com/go-chi/chi/v5"
+    "github.com/go-chi/chi/v5/middleware"
 )
 
 type Review struct {
@@ -23,7 +24,19 @@ var (
 )
 
 func main() {
+    r := newRouter()
+
+    log.Println("server starting on :8080")
+    if err := http.ListenAndServe(":8080", r); err != nil {
+        log.Fatalf("server failed: %v", err)
+    }
+}
+
+func newRouter() http.Handler {
     r := chi.NewRouter()
+    // middlewares: logging and recovery
+    r.Use(middleware.Logger)
+    r.Use(middleware.Recoverer)
 
     r.Get("/health", handleHealth)
     r.Get("/reviews", handleListReviews)
@@ -31,10 +44,7 @@ func main() {
     r.Post("/reviews", handleCreateReview)
     r.Put("/reviews/{id}", handleUpdateReview)
 
-    log.Println("server starting on :8080")
-    if err := http.ListenAndServe(":8080", r); err != nil {
-        log.Fatalf("server failed: %v", err)
-    }
+    return r
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) {
