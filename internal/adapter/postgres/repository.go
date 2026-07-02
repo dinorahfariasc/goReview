@@ -102,6 +102,7 @@ func (r Repository) GetReview(ctx context.Context, id int64) (domain.Review, err
 func (r Repository) CreateReview(ctx context.Context, input domain.CreateReviewInput) (domain.Review, error) {
 	row, err := r.queries.CreateReview(ctx, db.CreateReviewParams{
 		MovieID:      input.MovieID,
+		UserID:       input.UserID,
 		ReviewerName: input.ReviewerName,
 		Rating:       input.Rating,
 		Content:      input.Content,
@@ -115,6 +116,7 @@ func (r Repository) CreateReview(ctx context.Context, input domain.CreateReviewI
 func (r Repository) UpdateReview(ctx context.Context, review domain.Review) (domain.Review, error) {
 	row, err := r.queries.UpdateReview(ctx, db.UpdateReviewParams{
 		ID:           review.ID,
+		UserID:       review.UserID,
 		ReviewerName: review.ReviewerName,
 		Rating:       review.Rating,
 		Content:      review.Content,
@@ -128,8 +130,11 @@ func (r Repository) UpdateReview(ctx context.Context, review domain.Review) (dom
 	return toReview(row), nil
 }
 
-func (r Repository) DeleteReview(ctx context.Context, id int64) error {
-	return r.queries.DeleteReview(ctx, id)
+func (r Repository) DeleteReview(ctx context.Context, id int64, userID int64) error {
+	return r.queries.DeleteReview(ctx, db.DeleteReviewParams{
+		ID:     id,
+		UserID: userID,
+	})
 }
 
 func toMovie(movie db.Movie) domain.Movie {
@@ -147,6 +152,7 @@ func toReview(review db.Review) domain.Review {
 	return domain.Review{
 		ID:           review.ID,
 		MovieID:      review.MovieID,
+		UserID:       review.UserID,
 		ReviewerName: review.ReviewerName,
 		Rating:       review.Rating,
 		Content:      review.Content,

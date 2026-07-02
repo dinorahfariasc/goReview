@@ -21,7 +21,7 @@ type ReviewRepository interface {
 	GetReview(ctx context.Context, id int64) (domain.Review, error)
 	CreateReview(ctx context.Context, input domain.CreateReviewInput) (domain.Review, error)
 	UpdateReview(ctx context.Context, review domain.Review) (domain.Review, error)
-	DeleteReview(ctx context.Context, id int64) error
+	DeleteReview(ctx context.Context, id int64, userID int64) error
 }
 
 type Service struct {
@@ -141,6 +141,10 @@ func (s Service) UpdateReview(ctx context.Context, id int64, input domain.Update
 		return domain.Review{}, mapReviewError(err)
 	}
 
+	if current.UserID != input.UserID {
+		return domain.Review{}, errors.New("forbidden: you do not own this review")
+	}
+
 	if input.ReviewerName != nil {
 		current.ReviewerName = strings.TrimSpace(*input.ReviewerName)
 	}
@@ -158,11 +162,11 @@ func (s Service) UpdateReview(ctx context.Context, id int64, input domain.Update
 	return s.reviews.UpdateReview(ctx, current)
 }
 
-func (s Service) DeleteReview(ctx context.Context, id int64) error {
+func (s Service) DeleteReview(ctx context.Context, id int64, userID int64) error {
 	if _, err := s.reviews.GetReview(ctx, id); err != nil {
 		return mapReviewError(err)
 	}
-	return s.reviews.DeleteReview(ctx, id)
+	return s.reviews.DeleteReview(ctx, id, userID)
 }
 
 func validateMovie(title, synopsis string, releaseYear int32) error {

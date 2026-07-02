@@ -17,12 +17,28 @@ type Movie struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type RefreshToken struct {
+	Token     string
+	UserID    int64
+	ExpiresAt pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+}
+
 type Review struct {
 	ID           int64
 	MovieID      int64
+	UserID       int64
 	ReviewerName string
 	Rating       int32
 	Content      string
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type User struct {
+	ID           int64
+	Email        string
+	PasswordHash string
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 }

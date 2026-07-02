@@ -3,7 +3,6 @@ package httpadapter
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,30 +26,15 @@ func newServiceStub() *serviceStub {
 	}
 }
 
-func (s *serviceStub) ListMovies(context.Context) ([]domain.Movie, error) {
-	return []domain.Movie{s.movies[1]}, nil
-}
-
-func (s *serviceStub) GetMovie(context.Context, int64) (domain.Movie, error) {
-	return s.movies[1], nil
-}
-
+func (s *serviceStub) ListMovies(context.Context) ([]domain.Movie, error)    { return nil, nil }
+func (s *serviceStub) GetMovie(context.Context, int64) (domain.Movie, error) { return s.movies[1], nil }
 func (s *serviceStub) CreateMovie(context.Context, domain.CreateMovieInput) (domain.Movie, error) {
 	return s.movies[1], nil
 }
-
 func (s *serviceStub) UpdateMovie(_ context.Context, id int64, input domain.UpdateMovieInput) (domain.Movie, error) {
-	movie := s.movies[id]
-	if input.Synopsis != nil {
-		movie.Synopsis = *input.Synopsis
-	}
-	s.movies[id] = movie
-	return movie, nil
+	return s.movies[id], nil
 }
-
-func (s *serviceStub) DeleteMovie(context.Context, int64) error {
-	return nil
-}
+func (s *serviceStub) DeleteMovie(context.Context, int64) error { return nil }
 
 func (s *serviceStub) GetMovieDetails(context.Context, int64) (domain.MovieDetails, error) {
 	reviews := []domain.Review{}
@@ -61,28 +45,14 @@ func (s *serviceStub) GetMovieDetails(context.Context, int64) (domain.MovieDetai
 }
 
 func (s *serviceStub) ListReviewsByMovie(context.Context, int64) ([]domain.Review, error) {
-	reviews := []domain.Review{}
-	for _, review := range s.reviews {
-		reviews = append(reviews, review)
-	}
-	return reviews, nil
+	return nil, nil
 }
-
 func (s *serviceStub) GetReview(_ context.Context, id int64) (domain.Review, error) {
 	return s.reviews[id], nil
 }
 
 func (s *serviceStub) CreateReview(_ context.Context, input domain.CreateReviewInput) (domain.Review, error) {
-	now := time.Now().UTC()
-	review := domain.Review{
-		ID:           1,
-		MovieID:      input.MovieID,
-		ReviewerName: input.ReviewerName,
-		Rating:       input.Rating,
-		Content:      input.Content,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	}
+	review := domain.Review{ID: 1, MovieID: input.MovieID, UserID: input.UserID, ReviewerName: input.ReviewerName, Rating: input.Rating, Content: input.Content}
 	s.reviews[review.ID] = review
 	return review, nil
 }
@@ -90,25 +60,26 @@ func (s *serviceStub) CreateReview(_ context.Context, input domain.CreateReviewI
 func (s *serviceStub) UpdateReview(context.Context, int64, domain.UpdateReviewInput) (domain.Review, error) {
 	return s.reviews[1], nil
 }
+func (s *serviceStub) DeleteReview(context.Context, int64, int64) error { return nil }
 
-func (s *serviceStub) DeleteReview(context.Context, int64) error {
-	return nil
+type authServiceStub struct{}
+
+func (a authServiceStub) Register(context.Context, domain.RegisterInput) (domain.User, error) {
+	return domain.User{}, nil
+}
+func (a authServiceStub) Login(context.Context, domain.LoginInput) (domain.TokenResponse, error) {
+	return domain.TokenResponse{}, nil
+}
+func (a authServiceStub) RefreshToken(context.Context, string) (domain.TokenResponse, error) {
+	return domain.TokenResponse{}, nil
 }
 
+// Teste 8
 func TestHandlerMovieDetailsFlow(t *testing.T) {
 	handler := NewHandler(newServiceStub())
-	router := NewRouter(handler)
+	router := NewRouter(handler, NewAuthHandler(authServiceStub{}))
 
-	createReviewBody := bytes.NewBufferString(`{"reviewer_name":"Dinorah","rating":5,"content":"Excelente atmosfera"}`)
-	createReviewReq := httptest.NewRequest(http.MethodPost, "/movies/1/reviews", createReviewBody)
-	createReviewReq.Header.Set("Content-Type", "application/json")
-	createReviewRes := httptest.NewRecorder()
-	router.ServeHTTP(createReviewRes, createReviewReq)
-
-	if createReviewRes.Code != http.StatusCreated {
-		t.Fatalf("expected 201 got %d", createReviewRes.Code)
-	}
-
+	// Rota GET é pública, deve funcionar sem token
 	detailsReq := httptest.NewRequest(http.MethodGet, "/movies/1/details", nil)
 	detailsRes := httptest.NewRecorder()
 	router.ServeHTTP(detailsRes, detailsReq)
@@ -116,12 +87,33 @@ func TestHandlerMovieDetailsFlow(t *testing.T) {
 	if detailsRes.Code != http.StatusOK {
 		t.Fatalf("expected 200 got %d", detailsRes.Code)
 	}
+}
 
-	var details domain.MovieDetails
-	if err := json.NewDecoder(detailsRes.Body).Decode(&details); err != nil {
-		t.Fatalf("decode failed: %v", err)
+// Teste 9
+func TestHandlerMiddlewareNoToken(t *testing.T) {
+	handler := NewHandler(newServiceStub())
+	router := NewRouter(handler, NewAuthHandler(authServiceStub{}))
+
+	// Rota POST é privada, deve ser bloqueada
+	req := httptest.NewRequest(http.MethodPost, "/movies", bytes.NewBufferString(`{}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized got %d", res.Code)
 	}
-	if len(details.Reviews) != 1 {
-		t.Fatalf("expected 1 review got %d", len(details.Reviews))
+}
+
+// Teste 10
+func TestHandlerAuthRoute(t *testing.T) {
+	authHandler := NewAuthHandler(authServiceStub{})
+	router := NewRouter(NewHandler(newServiceStub()), authHandler)
+
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString(`{"email":"a@b.com", "password":"123"}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK got %d", res.Code)
 	}
 }

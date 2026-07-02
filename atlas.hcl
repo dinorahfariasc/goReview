@@ -1,6 +1,6 @@
 env "local" {
   url = getenv("DATABASE_URL")
-  dev = "docker://postgres/16/dev?search_path=public"
+  dev = "postgres://goreview:goreview@host.docker.internal:5433/dev?sslmode=disable"
   src = "file://db/schema"
 
   migration {
