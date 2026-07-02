@@ -24,7 +24,7 @@ type Service interface {
 	GetReview(ctx context.Context, id int64) (domain.Review, error)
 	CreateReview(ctx context.Context, input domain.CreateReviewInput) (domain.Review, error)
 	UpdateReview(ctx context.Context, id int64, input domain.UpdateReviewInput) (domain.Review, error)
-	DeleteReview(ctx context.Context, id int64) error
+	DeleteReview(ctx context.Context, id int64, userID int64) error
 }
 
 type Handler struct {
@@ -175,6 +175,7 @@ func (h Handler) handleCreateReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	input.MovieID = movieID
+	input.UserID = getUserID(r)
 
 	review, err := h.service.CreateReview(r.Context(), input)
 	if err != nil {
@@ -209,6 +210,7 @@ func (h Handler) handleUpdateReview(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid body"})
 		return
 	}
+	input.UserID = getUserID(r)
 
 	review, err := h.service.UpdateReview(r.Context(), id, input)
 	if err != nil {
@@ -224,7 +226,7 @@ func (h Handler) handleDeleteReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.DeleteReview(r.Context(), id); err != nil {
+	if err := h.service.DeleteReview(r.Context(), id, getUserID(r)); err != nil {
 		handleUsecaseError(w, err, "failed to delete review")
 		return
 	}

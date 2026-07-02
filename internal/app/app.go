@@ -33,8 +33,14 @@ func Run() error {
 
 	queries := db.New(pool)
 	repository := postgres.NewRepository(queries)
-	service := usecase.NewService(repository, repository)
-	handler := httpadapter.NewHandler(service)
 
-	return http.ListenAndServe(":"+cfg.Port, httpadapter.NewRouter(handler))
+	//inicialização das regras de negócio (services)
+	service := usecase.NewService(repository, repository)
+	authService := usecase.NewAuthService(repository)
+
+	//inicialização dos controladores http (handlers)
+	handler := httpadapter.NewHandler(service)
+	authHandler := httpadapter.NewAuthHandler(authService)
+
+	return http.ListenAndServe(":"+cfg.Port, httpadapter.NewRouter(handler, authHandler))
 }

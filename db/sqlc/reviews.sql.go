@@ -10,13 +10,14 @@ import (
 )
 
 const createReview = `-- name: CreateReview :one
-INSERT INTO reviews (movie_id, reviewer_name, rating, content)
-VALUES ($1, $2, $3, $4)
-RETURNING id, movie_id, reviewer_name, rating, content, created_at, updated_at
+INSERT INTO reviews (movie_id, user_id, reviewer_name, rating, content)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, movie_id, user_id, reviewer_name, rating, content, created_at, updated_at
 `
 
 type CreateReviewParams struct {
 	MovieID      int64
+	UserID       int64
 	ReviewerName string
 	Rating       int32
 	Content      string
@@ -25,6 +26,7 @@ type CreateReviewParams struct {
 func (q *Queries) CreateReview(ctx context.Context, arg CreateReviewParams) (Review, error) {
 	row := q.db.QueryRow(ctx, createReview,
 		arg.MovieID,
+		arg.UserID,
 		arg.ReviewerName,
 		arg.Rating,
 		arg.Content,
@@ -33,6 +35,7 @@ func (q *Queries) CreateReview(ctx context.Context, arg CreateReviewParams) (Rev
 	err := row.Scan(
 		&i.ID,
 		&i.MovieID,
+		&i.UserID,
 		&i.ReviewerName,
 		&i.Rating,
 		&i.Content,
@@ -44,16 +47,21 @@ func (q *Queries) CreateReview(ctx context.Context, arg CreateReviewParams) (Rev
 
 const deleteReview = `-- name: DeleteReview :exec
 DELETE FROM reviews
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 `
 
-func (q *Queries) DeleteReview(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, deleteReview, id)
+type DeleteReviewParams struct {
+	ID     int64
+	UserID int64
+}
+
+func (q *Queries) DeleteReview(ctx context.Context, arg DeleteReviewParams) error {
+	_, err := q.db.Exec(ctx, deleteReview, arg.ID, arg.UserID)
 	return err
 }
 
 const getReview = `-- name: GetReview :one
-SELECT id, movie_id, reviewer_name, rating, content, created_at, updated_at
+SELECT id, movie_id, user_id, reviewer_name, rating, content, created_at, updated_at
 FROM reviews
 WHERE id = $1
 `
@@ -64,6 +72,7 @@ func (q *Queries) GetReview(ctx context.Context, id int64) (Review, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.MovieID,
+		&i.UserID,
 		&i.ReviewerName,
 		&i.Rating,
 		&i.Content,
@@ -74,7 +83,7 @@ func (q *Queries) GetReview(ctx context.Context, id int64) (Review, error) {
 }
 
 const listReviewsByMovie = `-- name: ListReviewsByMovie :many
-SELECT id, movie_id, reviewer_name, rating, content, created_at, updated_at
+SELECT id, movie_id, user_id, reviewer_name, rating, content, created_at, updated_at
 FROM reviews
 WHERE movie_id = $1
 ORDER BY id
@@ -92,6 +101,7 @@ func (q *Queries) ListReviewsByMovie(ctx context.Context, movieID int64) ([]Revi
 		if err := rows.Scan(
 			&i.ID,
 			&i.MovieID,
+			&i.UserID,
 			&i.ReviewerName,
 			&i.Rating,
 			&i.Content,
@@ -110,16 +120,17 @@ func (q *Queries) ListReviewsByMovie(ctx context.Context, movieID int64) ([]Revi
 
 const updateReview = `-- name: UpdateReview :one
 UPDATE reviews
-SET reviewer_name = $2,
-    rating = $3,
-    content = $4,
+SET reviewer_name = $3,
+    rating = $4,
+    content = $5,
     updated_at = NOW()
-WHERE id = $1
-RETURNING id, movie_id, reviewer_name, rating, content, created_at, updated_at
+WHERE id = $1 AND user_id = $2
+RETURNING id, movie_id, user_id, reviewer_name, rating, content, created_at, updated_at
 `
 
 type UpdateReviewParams struct {
 	ID           int64
+	UserID       int64
 	ReviewerName string
 	Rating       int32
 	Content      string
@@ -128,6 +139,7 @@ type UpdateReviewParams struct {
 func (q *Queries) UpdateReview(ctx context.Context, arg UpdateReviewParams) (Review, error) {
 	row := q.db.QueryRow(ctx, updateReview,
 		arg.ID,
+		arg.UserID,
 		arg.ReviewerName,
 		arg.Rating,
 		arg.Content,
@@ -136,6 +148,7 @@ func (q *Queries) UpdateReview(ctx context.Context, arg UpdateReviewParams) (Rev
 	err := row.Scan(
 		&i.ID,
 		&i.MovieID,
+		&i.UserID,
 		&i.ReviewerName,
 		&i.Rating,
 		&i.Content,

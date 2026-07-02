@@ -7,9 +7,21 @@ services:
       POSTGRES_USER: goreview
       POSTGRES_PASSWORD: goreview
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  postgres-dev:
+    image: postgres:16-alpine
+    container_name: goreview-postgres-dev
+    environment:
+      POSTGRES_DB: dev
+      POSTGRES_USER: goreview
+      POSTGRES_PASSWORD: goreview
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
 
 volumes:
   postgres_data:
